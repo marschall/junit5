@@ -369,6 +369,13 @@ class TempDirectoryPerDeclarationTests extends AbstractJupiterTestEngineTests {
 					.assertStatistics(stats -> stats.started(1).succeeded(1));
 		}
 
+		@Test
+		@DisplayName("that uses custom meta-annotation")
+		void supportsFactoryWithCustomMetaMetaAnnotation() {
+			executeTestsForClass(FactoryWithCustomMetaMetaAnnotationTestCase.class).testEvents()//
+					.assertStatistics(stats -> stats.started(1).succeeded(1));
+		}
+
 	}
 
 	@Nested
@@ -1353,6 +1360,54 @@ class TempDirectoryPerDeclarationTests extends AbstractJupiterTestEngineTests {
 		private @interface TempDirWithPrefix {
 
 			String value();
+
+		}
+
+		private static class Factory implements TempDirFactory {
+
+			@Override
+			public Path createTempDirectory(AnnotatedElementContext elementContext, ExtensionContext extensionContext)
+					throws Exception {
+				String prefix = elementContext.findAnnotation(TempDirWithPrefix.class) //
+						.map(TempDirWithPrefix::value).orElseThrow();
+				return Files.createTempDirectory(prefix);
+			}
+
+		}
+
+	}
+
+	static class FactoryWithCustomMetaMetaAnnotationTestCase {
+
+		@TempDirWithPrefixField
+		private Path tempField;
+
+		@Test
+		void test(@TempDirWithPrefixParameter Path tempParameter) {
+			assertThat(tempField.getFileName()).asString().startsWith("field");
+			assertThat(tempParameter.getFileName()).asString().startsWith("parameter");
+		}
+
+		@Target({ ANNOTATION_TYPE, FIELD, PARAMETER })
+		@Retention(RUNTIME)
+		@TempDir(factory = FactoryWithCustomMetaAnnotationTestCase.Factory.class)
+		private @interface TempDirWithPrefix {
+
+			String value();
+
+		}
+
+		@Target({ ANNOTATION_TYPE, FIELD, PARAMETER })
+		@Retention(RUNTIME)
+		@TempDirWithPrefix("field")
+		private @interface TempDirWithPrefixField {
+
+		}
+
+		@Target({ ANNOTATION_TYPE, FIELD, PARAMETER })
+		@Retention(RUNTIME)
+		@TempDirWithPrefix("parameter")
+		private @interface TempDirWithPrefixParameter {
 
 		}
 
